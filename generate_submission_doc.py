@@ -42,12 +42,13 @@ def create_submission_doc(output_path="EcoSage_Hackathon_Submission.docx"):
     run_sub.font.color.rgb = SECONDARY_COLOR
 
     # ─── Submission Metadata Box ─────────────────────────────────────
-    table_meta = doc.add_table(rows=5, cols=2)
+    table_meta = doc.add_table(rows=6, cols=2)
     table_meta.alignment = WD_TABLE_ALIGNMENT.CENTER
     table_meta.autofit = False
 
     meta_data = [
-        ("Candidate / Team:", "Radheya Shetty"),
+        ("Candidate / Team:", "Radheya Shetty (NMIMS Mumbai)"),
+        ("Primary Contact Email:", "radheya.shetty214@nmims.in"),
         ("GitHub Repository:", "https://github.com/radheyashetty/ECOSAGE_hackathon"),
         ("Live Demo URL:", "https://ecosagehackathon-radheyashetty.streamlit.app"),
         ("Target Challenge:", "Darukaa.Earth AI Environmental Scientist Hackathon"),
@@ -278,6 +279,35 @@ def create_submission_doc(output_path="EcoSage_Hackathon_Submission.docx"):
         c0.paragraphs[0].add_run(sname).font.bold = True
         c1.paragraphs[0].add_run(sfile)
         c2.paragraphs[0].add_run(sdesc)
+
+    # Embed Actual Screenshot Figures directly into Document
+    doc.add_paragraph().paragraph_format.space_before = Pt(8)
+    h6_sub = doc.add_heading("6.1 Visual Workstation Screen Captures", level=2)
+    h6_sub.runs[0].font.color.rgb = SECONDARY_COLOR
+
+    screen_figures = [
+        ("screenshots/01_landing_page.png", "Figure 1: Workstation Landing Page with 3 Explainer Cards, 5-Slot Category Bar, and 1-Click Evaluation Chips."),
+        ("screenshots/02_advisory_field_report.png", "Figure 2: Grounded Advisory Field Report Card with Semantic Badges, 'Why this matters', Causal Traversal Chips, and Trade-offs."),
+        ("screenshots/03_retrieval_evidence_detail.png", "Figure 3: ChromaDB Retrieval Provenance Audit Expander displaying Document IDs, Cosine Similarities, and Supported Recommendations."),
+        ("screenshots/04_scenario_comparison.png", "Figure 4: Parameter Sensitivity Analysis ('Try Changing One Variable') executing live dual-scenario comparison."),
+        ("screenshots/05_clarifying_questions.png", "Figure 5: Conversational Clarifying Flow asking targeted questions with interactive discrete parameter buttons."),
+    ]
+
+    import os
+    for img_path, caption in screen_figures:
+        if os.path.exists(img_path):
+            p_img = doc.add_paragraph()
+            p_img.paragraph_format.space_before = Pt(8)
+            p_img.paragraph_format.space_after = Pt(2)
+            run_img = p_img.add_run()
+            run_img.add_picture(img_path, width=Inches(6.0))
+            
+            p_cap = doc.add_paragraph()
+            p_cap.paragraph_format.space_after = Pt(10)
+            run_cap = p_cap.add_run(caption)
+            run_cap.font.size = Pt(8.5)
+            run_cap.font.italic = True
+            run_cap.font.color.rgb = RGBColor(107, 114, 128)
 
     # ─── 7. Database Schema, CI/CD & Local Reproduction ──────────────
     h7 = doc.add_heading("7. Architecture, Database/Schema, Local Setup & CI/CD", level=1)
