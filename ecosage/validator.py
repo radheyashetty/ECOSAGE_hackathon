@@ -2,9 +2,10 @@
 Post-generation output validation (PRD Section 5.3, FR-3.2).
 This is critical for anti-hallucination.
 """
-from dataclasses import dataclass, field
 import re
-from ecosage.models import Recommendation, EcoSageResponse
+from dataclasses import dataclass, field
+
+from ecosage.models import EcoSageResponse, Recommendation
 
 # Blocklist of generic/shallow phrases that should be rejected
 GENERIC_BLOCKLIST = [
@@ -104,6 +105,20 @@ def validate_recommendation(rec: Recommendation, retrieved_source_ids: set[str])
     # Check 8: Confidence level is set
     if not getattr(rec, 'confidence', None):
         warnings.append("Confidence level not set on recommendation.")
+    elif getattr(rec, 'confidence', None) == "Low":
+        # Check 9: Confidence calibration - Low confidence must not make unhedged assertive claims
+        HEDGE_TERMS = [
+            "preliminary", "provisional", "directional", "may", "suggests",
+            "potential", "conditional", "further testing", "subject to",
+            "investigate", "indicates", "explore", "consider"
+        ]
+        text_to_check = f"{rec.action} {rec.mechanism} {rec.quantified_estimate}".lower()
+        has_hedge = any(term in text_to_check for term in HEDGE_TERMS)
+        if not has_hedge:
+            errors.append(
+                "Low-confidence recommendation makes an assertive claim without required hedging or follow-up inquiry. "
+                "Must include hedging language (e.g. 'preliminary', 'directional', 'may', 'suggests') or conditional guidance."
+            )
         
     return ValidationResult(
         is_valid=len(errors) == 0,
@@ -112,7 +127,7 @@ def validate_recommendation(rec: Recommendation, retrieved_source_ids: set[str])
     )
 
 def validate_response(response: EcoSageResponse, retrieved_source_ids: set[str]) -> ValidationResult:
-    """Validate the full response."""
+    """Validate the full response and wire low-confidence follow-up questions."""
     errors = []
     warnings = []
     
@@ -132,6 +147,12 @@ def validate_response(response: EcoSageResponse, retrieved_source_ids: set[str])
                 errors.append(f"Rec {i+1}: {err}")
             for warn in res.warnings:
                 warnings.append(f"Rec {i+1}: {warn}")
+
+            # Wire low confidence to trigger a follow-up question/hedge
+            if getattr(rec, 'confidence', None) == "Low":
+                follow_up = f"Directional guidance note: '{rec.action}' carries low evidence confidence. Would you like to provide on-site soil analysis or local field observations to verify this intervention?"
+                if follow_up not in response.clarifying_questions:
+                    response.clarifying_questions.append(follow_up)
                 
     return ValidationResult(
         is_valid=len(errors) == 0,

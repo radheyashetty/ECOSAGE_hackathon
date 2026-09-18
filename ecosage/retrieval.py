@@ -1,9 +1,9 @@
 import json
 import logging
 import threading
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 import chromadb
 from google import genai
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 # Thread-safe storage for retrieval traces
 _trace_lock = threading.Lock()
-_retrieval_traces: Dict[str, List[RetrievalTrace]] = {}
+_retrieval_traces: dict[str, list[RetrievalTrace]] = {}
 
-def log_trace(session_id: str, query: str, results: List[RetrievalResult], error: Optional[str] = None):
+def log_trace(session_id: str, query: str, results: list[RetrievalResult], error: str | None = None):
     """Log a retrieval trace for a session."""
     trace = RetrievalTrace(
         session_id=session_id,
@@ -31,7 +31,7 @@ def log_trace(session_id: str, query: str, results: List[RetrievalResult], error
             _retrieval_traces[session_id] = []
         _retrieval_traces[session_id].append(trace)
 
-def get_retrieval_trace(session_id: str) -> List[RetrievalTrace]:
+def get_retrieval_trace(session_id: str) -> list[RetrievalTrace]:
     """
     Get all retrieval traces for a specific session.
     
@@ -44,22 +44,58 @@ def get_retrieval_trace(session_id: str) -> List[RetrievalTrace]:
     with _trace_lock:
         return _retrieval_traces.get(session_id, []).copy()
 
-def get_query_embedding(query: str, client: genai.Client) -> List[float]:
-    """Get embedding for the search query."""
+def link_trace_to_recommendations(session_id: str, recommendations: list[Any]) -> None:
+    """Associate retrieved chunks with the recommendations they fed into (FR-1.4)."""
+    with _trace_lock:
+        traces = _retrieval_traces.get(session_id, [])
+        if not traces:
+            return
+
+        source_to_recs: dict[str, list[str]] = {}
+        for rec in recommendations:
+            action_text = getattr(rec, "action", "")
+            for src in getattr(rec, "sources", []):
+                src_id = getattr(src, "id", "")
+                if src_id:
+                    source_to_recs.setdefault(src_id, []).append(action_text)
+
+        for trace in traces:
+            for res in trace.results:
+                if res.source_id in source_to_recs:
+                    res.supported_recommendation = "; ".join(source_to_recs[res.source_id])
+                elif recommendations and not res.supported_recommendation:
+                    res.supported_recommendation = getattr(recommendations[0], "action", "General context grounding")
+
+_query_embedding_cache: dict[str, list[float]] = {}
+
+def get_query_embedding(query: str, client: genai.Client) -> list[float]:
+    """Get embedding for the search query with in-memory caching."""
+    clean_query = query.strip()
+    with _trace_lock:
+        if clean_query in _query_embedding_cache:
+            return _query_embedding_cache[clean_query]
+
     settings = get_settings()
     try:
         response = client.models.embed_content(
             model=settings.EMBEDDING_MODEL,
-            contents=query
+            contents=clean_query
         )
+        emb = []
         if hasattr(response, 'embeddings'):
-            return response.embeddings[0].values
-        return response
+            emb = response.embeddings[0].values
+        elif isinstance(response, list):
+            emb = response
+
+        if emb:
+            with _trace_lock:
+                _query_embedding_cache[clean_query] = emb
+        return emb
     except Exception as e:
         logger.error(f"Error getting embedding for query: {e}")
         return []
 
-def retrieve(query: str, top_k: int = 5, session_id: str = "default") -> List[RetrievalResult]:
+def retrieve(query: str, top_k: int = 5, session_id: str = "default") -> list[RetrievalResult]:
     """
     Main vector search function.
     
@@ -127,7 +163,7 @@ def retrieve(query: str, top_k: int = 5, session_id: str = "default") -> List[Re
     log_trace(session_id, query, retrieval_results)
     return retrieval_results
 
-def lookup_structured_table(table_name: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+def lookup_structured_table(table_name: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Direct lookup in JSON reference tables.
     

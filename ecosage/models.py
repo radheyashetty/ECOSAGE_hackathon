@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LandUseType(str, Enum):
@@ -34,37 +35,37 @@ class ConfidenceLevel(str, Enum):
 
 class GeoCoordinates(BaseModel):
     """Optional geographic coordinates for regional inference."""
-    lat: Optional[float] = None
-    lng: Optional[float] = None
+    lat: float | None = None
+    lng: float | None = None
 
 
 class EnvironmentalMetrics(BaseModel):
     """Core environmental metrics schema (PRD Section 8.1)."""
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    soil_ph: Optional[float] = Field(None, ge=0, le=14, description="Soil pH level")
-    soil_organic_carbon_pct: Optional[float] = Field(None, ge=0, le=100, description="Soil organic carbon percentage")
-    soil_moisture_pct: Optional[float] = Field(None, ge=0, le=100, description="Soil moisture percentage")
-    land_use_type: Optional[str] = Field(None, description="Current land use type")
-    crop: Optional[str] = Field(None, description="Current crop being grown")
-    species_richness_index: Optional[float] = Field(None, ge=0, le=1, description="Species richness index (0-1)")
-    habitat_diversity_score: Optional[float] = Field(None, ge=0, le=1, description="Habitat diversity score (0-1)")
-    rainfall: Optional[str] = Field(None, description="Rainfall pattern or mm/year")
-    rainfall_mm_annual: Optional[float] = Field(None, ge=0, description="Annual rainfall in mm")
-    temperature_avg_c: Optional[float] = Field(None, description="Average temperature in Celsius")
-    pollution_index: Optional[float] = Field(None, ge=0, le=1, description="Pollution index (0-1)")
-    deforestation_rate_pct: Optional[float] = Field(None, ge=0, le=100, description="Annual deforestation rate percentage")
-    region: Optional[str] = Field(None, description="Geographic region or biome")
+    soil_ph: float | None = Field(None, ge=0, le=14, description="Soil pH level")
+    soil_organic_carbon_pct: float | None = Field(None, ge=0, le=100, description="Soil organic carbon percentage")
+    soil_moisture_pct: float | None = Field(None, ge=0, le=100, description="Soil moisture percentage")
+    land_use_type: str | None = Field(None, description="Current land use type")
+    crop: str | None = Field(None, description="Current crop being grown")
+    species_richness_index: float | None = Field(None, ge=0, le=1, description="Species richness index (0-1)")
+    habitat_diversity_score: float | None = Field(None, ge=0, le=1, description="Habitat diversity score (0-1)")
+    rainfall: str | None = Field(None, description="Rainfall pattern or mm/year")
+    rainfall_mm_annual: float | None = Field(None, ge=0, description="Annual rainfall in mm")
+    temperature_avg_c: float | None = Field(None, description="Average temperature in Celsius")
+    pollution_index: float | None = Field(None, ge=0, le=1, description="Pollution index (0-1)")
+    deforestation_rate_pct: float | None = Field(None, ge=0, le=100, description="Annual deforestation rate percentage")
+    region: str | None = Field(None, description="Geographic region or biome")
 
 
 class EcoSageInput(BaseModel):
     """Input contract for EcoSage (PRD Section 8.2)."""
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    session_id: Optional[str] = Field(None, description="Session ID for multi-turn conversation")
-    metrics: Optional[EnvironmentalMetrics] = Field(None, description="Structured environmental metrics")
-    geo: Optional[GeoCoordinates] = Field(None, description="Geographic coordinates")
-    query_text: Optional[str] = Field(None, description="Free-text query")
+    session_id: str | None = Field(None, description="Session ID for multi-turn conversation")
+    metrics: EnvironmentalMetrics | None = Field(None, description="Structured environmental metrics")
+    geo: GeoCoordinates | None = Field(None, description="Geographic coordinates")
+    query_text: str | None = Field(None, description="Free-text query")
 
 
 class Source(BaseModel):
@@ -82,6 +83,14 @@ class Recommendation(BaseModel):
     time_horizon: TimeHorizon = Field(..., description="Expected timeframe for results")
     confidence: ConfidenceLevel = Field(..., description="Confidence level")
     sources: list[Source] = Field(..., min_length=1, description="Supporting citations")
+    ecological_tradeoffs: list[str] = Field(
+        default_factory=list,
+        description="Potential ecological trade-offs, risks, or management precautions"
+    )
+    economic_feasibility: str = Field(
+        default="Moderate CapEx / Phased ROI over 1-3 years",
+        description="Economic and operational feasibility assessment"
+    )
 
 
 class EcoSageResponse(BaseModel):
@@ -89,7 +98,7 @@ class EcoSageResponse(BaseModel):
     session_id: str = Field(..., description="Session identifier")
     clarifying_questions: list[str] = Field(default_factory=list, description="Questions to ask if input is incomplete")
     recommendations: list[Recommendation] = Field(default_factory=list, description="Evidence-backed recommendations")
-    reasoning_trace: Optional[dict] = Field(None, description="Debug: causal chain and retrieval trace")
+    reasoning_trace: dict | None = Field(None, description="Debug: causal chain and retrieval trace")
 
 
 class RetrievalResult(BaseModel):
@@ -100,6 +109,7 @@ class RetrievalResult(BaseModel):
     similarity_score: float
     metadata: dict = Field(default_factory=dict)
     is_below_threshold: bool = False
+    supported_recommendation: str | None = None
 
 
 class RetrievalTrace(BaseModel):
@@ -108,5 +118,5 @@ class RetrievalTrace(BaseModel):
     query: str
     results: list[RetrievalResult]
     timestamp: str = ""
-    usage_downstream: Optional[str] = None
-    error: Optional[str] = None
+    usage_downstream: str | None = None
+    error: str | None = None

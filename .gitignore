@@ -1,13 +1,64 @@
+# Environment and API keys (CRITICAL - DO NOT COMMIT)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Local ChromaDB Vector Store & Database
+chroma_db/
+data/
+*.sqlite3
+
+# Python bytecode & cache
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
+*.so
+.Python
+
+# Packaging & distribution
 dist/
 build/
-.env
-chroma_db/
+*.egg-info/
 *.egg
-.pytest_cache/
-.ruff_cache/
+develop-eggs/
+eggs/
+parts/
+bin/
+var/
+sdist/
+
+# Virtual Environments
 venv/
 .venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs, Temporary & Test Report Artifacts
+logs/
+*.log
+scratch/
+tmp/
+temp/
+report.html
+.coverage
+htmlcov/
+
+# Testing & Linting caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Streamlit & Local App Caches
+.streamlit/secrets.toml
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

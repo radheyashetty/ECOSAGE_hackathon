@@ -7,7 +7,8 @@ This test requires:
 Run with: pytest tests/test_acceptance.py -v -m acceptance
 """
 import pytest
-from ecosage.models import EcoSageInput, EnvironmentalMetrics, EcoSageResponse
+
+from ecosage.models import EcoSageInput, EcoSageResponse, EnvironmentalMetrics
 from ecosage.orchestrator import process_input
 
 pytestmark = pytest.mark.acceptance

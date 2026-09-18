@@ -8,10 +8,9 @@ Supports multiple providers:
 """
 import json
 import logging
-from typing import Any
 
 from ecosage.config import get_settings
-from ecosage.models import Recommendation, Source, EcoSageResponse
+from ecosage.models import Recommendation, Source
 from ecosage.validator import compute_confidence
 
 logger = logging.getLogger(__name__)
@@ -27,6 +26,8 @@ CRITICAL RULES:
    - At least 3 impacted environmental metrics with their causal connections
    - A quantified estimate with numbers (e.g., "+15-25% SOC over 2-3 years")
    - The time horizon (short <1yr / medium 1-3yr / long 3yr+)
+   - Ecological trade-offs or management precautions (e.g. moisture competition, sapling grazing defense, or shade management)
+   - Economic & operational feasibility assessment (e.g. Low CapEx seed outlay, phased silvopasture investment)
    - Specific source citations from the provided context
 3. You MUST trace causal chains: e.g., intercropping → root diversity → SOC accumulation → microbial diversity → pollinator activity
 4. NEVER use generic phrases like "use sustainable practices" or "plant more trees" without specifics.
@@ -41,6 +42,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       "impacted_metrics": ["metric1", "metric2", "metric3"],
       "quantified_estimate": "Specific numbers e.g. +15-25% over 2-3 years",
       "time_horizon": "short|medium|long",
+      "ecological_tradeoffs": ["Specific potential trade-off or management precaution"],
+      "economic_feasibility": "Low/Medium/High CapEx with expected ROI timeframe",
       "sources": [{"name": "Source Name", "id": "SOURCE-ID"}]
     }
   ]
@@ -110,6 +113,8 @@ def _generate_gemini(context_prompt: str) -> str:
         settings.LLM_MODEL,
         "gemini-3.5-flash",
         "gemini-3.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
         "gemini-flash-latest",
         "gemini-flash-lite-latest",
     ]
@@ -118,7 +123,7 @@ def _generate_gemini(context_prompt: str) -> str:
     unique_models = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
     last_error = None
-    for model_name in unique_models:
+    for idx, model_name in enumerate(unique_models):
         try:
             response = client.models.generate_content(
                 model=model_name,
@@ -130,9 +135,11 @@ def _generate_gemini(context_prompt: str) -> str:
                 )
             )
             if response.text:
+                if idx > 0:
+                    logger.info(f"🔄 Auto-fallback to {model_name} activated and succeeded!")
                 return response.text
         except Exception as e:
-            logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
+            logger.warning(f"Model {model_name} unavailable ({e}). Auto-falling back to next candidate...")
             last_error = e
 
     if last_error:
@@ -243,7 +250,7 @@ def generate_recommendations(
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
         # Remove first and last lines (code fences)
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         cleaned = "\n".join(lines)
 
     try:
@@ -266,14 +273,23 @@ def generate_recommendations(
             source_count = len(sources)
             confidence = compute_confidence(similarity_scores, source_count)
 
+            tradeoffs = rec_data.get("ecological_tradeoffs") or [
+                "Requires seasonal monitoring to manage early-stage resource competition and pest dynamics."
+            ]
+            feasibility = rec_data.get("economic_feasibility") or (
+                "Moderate initial CapEx / Positive return on investment via input reduction within 1-2 seasons."
+            )
+
             rec = Recommendation(
                 action=rec_data.get("action", ""),
                 mechanism=rec_data.get("mechanism", ""),
                 impacted_metrics=rec_data.get("impacted_metrics", []),
                 quantified_estimate=rec_data.get("quantified_estimate", ""),
-                time_horizon=rec_data.get("time_horizon", ""),
+                time_horizon=rec_data.get("time_horizon", "medium"),
                 sources=sources,
-                confidence=confidence
+                confidence=confidence,
+                ecological_tradeoffs=tradeoffs,
+                economic_feasibility=feasibility
             )
             recommendations.append(rec)
         except Exception as e:

@@ -1,7 +1,10 @@
 """Unit tests for the output validator."""
-import pytest
-from ecosage.models import Recommendation, Source, EcoSageResponse
-from ecosage.validator import validate_recommendation, validate_response, compute_confidence
+from ecosage.models import EcoSageResponse, Recommendation, Source
+from ecosage.validator import (
+    compute_confidence,
+    validate_recommendation,
+    validate_response,
+)
 
 
 class TestValidateRecommendation:
@@ -58,7 +61,7 @@ class TestValidateRecommendation:
         rec_dict = rec.model_dump()
         rec_dict["impacted_metrics"] = ["soil_organic_carbon_pct"]
         try:
-            bad_rec = Recommendation(**rec_dict)
+            Recommendation(**rec_dict)
         except Exception:
             pass  # Pydantic correctly rejects this
 
@@ -80,6 +83,49 @@ class TestComputeConfidence:
         result = compute_confidence([0.85], source_count=0)
         assert result == "Low"
 
+    def test_low_confidence_unhedged_assertive_fails(self):
+        rec = Recommendation(
+            action="Must implement immediate deep-root agroforestry overhaul",
+            mechanism="This definitive intervention guarantees rapid soil organic carbon recovery and doubles species richness index across degraded agricultural landscapes.",
+            impacted_metrics=["soil_organic_carbon_pct", "species_richness_index", "soil_moisture_retention"],
+            quantified_estimate="+25% guaranteed increase in 1 year",
+            time_horizon="short",
+            confidence="Low",
+            sources=[Source(name="FAO Report", id="FAO-SOC-2017")]
+        )
+        res = validate_recommendation(rec, {"FAO-SOC-2017"})
+        assert not res.is_valid
+        assert any("low-confidence" in e.lower() or "hedging" in e.lower() for e in res.errors)
+
+    def test_low_confidence_hedged_claim_passes(self):
+        rec = Recommendation(
+            action="Consider preliminary agroforestry trials with nitrogen-fixing species",
+            mechanism="Preliminary evidence suggests this may assist soil organic carbon retention and foster microbial diversity under monitored conditions.",
+            impacted_metrics=["soil_organic_carbon_pct", "species_richness_index", "soil_moisture_retention"],
+            quantified_estimate="+10-15% potential estimate over 2-3 years",
+            time_horizon="medium",
+            confidence="Low",
+            sources=[Source(name="FAO Report", id="FAO-SOC-2017")]
+        )
+        res = validate_recommendation(rec, {"FAO-SOC-2017"})
+        assert res.is_valid
+
+    def test_low_confidence_triggers_followup_question(self):
+        rec = Recommendation(
+            action="Consider preliminary agroforestry trials with nitrogen-fixing species",
+            mechanism="Preliminary evidence suggests this may assist soil organic carbon retention and foster microbial diversity under monitored conditions.",
+            impacted_metrics=["soil_organic_carbon_pct", "species_richness_index", "soil_moisture_retention"],
+            quantified_estimate="+10-15% potential estimate over 2-3 years",
+            time_horizon="medium",
+            confidence="Low",
+            sources=[Source(name="FAO Report", id="FAO-SOC-2017")]
+        )
+        resp = EcoSageResponse(session_id="test-session-conf", recommendations=[rec])
+        res = validate_response(resp, {"FAO-SOC-2017"})
+        assert res.is_valid
+        assert len(resp.clarifying_questions) > 0
+        assert any("low evidence confidence" in q.lower() or "directional" in q.lower() for q in resp.clarifying_questions)
+
 
 class TestValidateResponse:
     def test_clarifying_questions_only_is_valid(self):
@@ -90,3 +136,21 @@ class TestValidateResponse:
         )
         result = validate_response(response, set())
         assert result.is_valid
+
+
+class TestFailSafeEngine:
+    def test_failsafe_produces_valid_recommendations(self):
+        from ecosage.failsafe import generate_failsafe_recommendations
+        metrics = {
+            "soil_organic_carbon_pct": 0.3,
+            "rainfall": "low",
+            "crop": "monoculture wheat",
+            "region": "semi-arid",
+            "land_use_type": "monoculture",
+        }
+        recs = generate_failsafe_recommendations(metrics)
+        assert len(recs) >= 1
+        response = EcoSageResponse(session_id="test-failsafe", recommendations=recs)
+        allowed_sources = {"FAO-SOC-2017", "IPCC-AR6-LU", "INTERCROP-2021", "COVER-CROP-2019"}
+        val = validate_response(response, allowed_sources)
+        assert val.is_valid, f"Failsafe recommendations failed validation: {val.errors}"

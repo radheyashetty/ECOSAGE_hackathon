@@ -18,16 +18,22 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest-html
       
       - name: Lint with ruff
         run: ruff check ecosage/ tests/ ui/
       
-      - name: Run unit tests (no API key needed)
-        run: pytest tests/test_validator.py -v
-      
-      - name: Run acceptance tests
-        if: env.GOOGLE_API_KEY != ''
+      - name: Run complete test suite with HTML report
+        run: pytest tests/ -v --junitxml=test-results.xml --html=report.html --self-contained-html
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        run: pytest tests/test_acceptance.py -v -m acceptance
+
+      - name: Upload Verifiable Test Report Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ecosage-verifiable-test-report
+          path: |
+            report.html
+            test-results.xml
+          retention-days: 30

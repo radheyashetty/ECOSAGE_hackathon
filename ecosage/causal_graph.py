@@ -3,8 +3,9 @@ EcoSage Causal Graph Module
 Encodes documented relationships between environmental variables as a source-tagged graph.
 """
 
-from typing import Dict, List, Set, Optional, TypedDict
 from collections import deque
+from typing import TypedDict
+
 
 class CausalEdge(TypedDict, total=False):
     source_metric: str
@@ -12,10 +13,10 @@ class CausalEdge(TypedDict, total=False):
     relationship: str
     direction: str  # "positive" or "negative"
     source_id: str
-    quantification: Optional[str]
+    quantification: str | None
 
 # Causal Edges defined based on PRD Section 5.4
-CAUSAL_EDGES: List[CausalEdge] = [
+CAUSAL_EDGES: list[CausalEdge] = [
     # Soil-Biodiversity cluster
     {
         "source_metric": "soil_organic_carbon",
@@ -220,14 +221,14 @@ CAUSAL_EDGES: List[CausalEdge] = [
 ]
 
 # Build adjacency dict
-ADJACENCY_DICT: Dict[str, List[CausalEdge]] = {}
+ADJACENCY_DICT: dict[str, list[CausalEdge]] = {}
 for edge in CAUSAL_EDGES:
     source = edge["source_metric"]
     if source not in ADJACENCY_DICT:
         ADJACENCY_DICT[source] = []
     ADJACENCY_DICT[source].append(edge)
 
-def get_causal_chain(start: str, end: str, max_depth: int = 5) -> List[List[CausalEdge]]:
+def get_causal_chain(start: str, end: str, max_depth: int = 5) -> list[list[CausalEdge]]:
     """BFS to find all paths from start metric to end metric (up to max_depth).
     Returns list of paths, each path is a list of CausalEdge objects."""
     queue = deque([(start, [])])
@@ -250,10 +251,10 @@ def get_causal_chain(start: str, end: str, max_depth: int = 5) -> List[List[Caus
                 
     return valid_chains
 
-def get_related_metrics(metric: str, depth: int = 2) -> Dict[str, List[CausalEdge]]:
+def get_related_metrics(metric: str, depth: int = 2) -> dict[str, list[CausalEdge]]:
     """Get all metrics reachable from the given metric within depth hops.
     Returns dict mapping metric name to the edges that connect to it."""
-    related: Dict[str, List[CausalEdge]] = {}
+    related: dict[str, list[CausalEdge]] = {}
     
     queue = deque([(metric, [])])
     visited = {metric}
@@ -273,12 +274,12 @@ def get_related_metrics(metric: str, depth: int = 2) -> Dict[str, List[CausalEdg
                 
     return related
 
-def get_edges_for_intervention(intervention: str) -> List[CausalEdge]:
+def get_edges_for_intervention(intervention: str) -> list[CausalEdge]:
     """Get all edges activated by a specific intervention (e.g., 'agroforestry').
     Searches for edges where source_metric matches the intervention."""
     return ADJACENCY_DICT.get(intervention, [])
 
-def get_all_metrics() -> Set[str]:
+def get_all_metrics() -> set[str]:
     """Return all unique metric names in the graph."""
     metrics = set()
     for edge in CAUSAL_EDGES:
@@ -286,7 +287,7 @@ def get_all_metrics() -> Set[str]:
         metrics.add(edge["target_metric"])
     return metrics
 
-def render_chain_text(chain: List[CausalEdge]) -> str:
+def render_chain_text(chain: list[CausalEdge]) -> str:
     """Convert a causal chain to human-readable text.
     E.g.: 'intercropping → root diversity (increases SOC by 10-20%) → soil organic carbon → microbial diversity (20-40% higher microbial biomass)'"""
     if not chain:
@@ -302,12 +303,12 @@ def render_chain_text(chain: List[CausalEdge]) -> str:
         
     return " ".join(parts)
 
-def get_graph_summary() -> Dict:
+def get_graph_summary() -> dict:
     """Return summary stats: number of nodes, edges, connected components."""
     metrics = get_all_metrics()
     
     # A simple connected components counter (undirected graph representation)
-    adj_undirected: Dict[str, Set[str]] = {m: set() for m in metrics}
+    adj_undirected: dict[str, set[str]] = {m: set() for m in metrics}
     for edge in CAUSAL_EDGES:
         adj_undirected[edge["source_metric"]].add(edge["target_metric"])
         adj_undirected[edge["target_metric"]].add(edge["source_metric"])

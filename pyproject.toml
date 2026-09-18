@@ -1,0 +1,22 @@
+[project]
+name = "ecosage"
+version = "1.0.0"
+description = "AI Environmental Scientist for Biodiversity Intelligence"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501", "W293", "W291", "W292"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+markers = [
+    "acceptance: marks tests that test the end-to-end PRD acceptance criteria"
+]

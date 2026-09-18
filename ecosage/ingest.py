@@ -1,15 +1,17 @@
-import re
 import json
+import re
 import sys
 import time
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 
 import chromadb
 from google import genai
+
 from ecosage.config import get_settings
 
-def chunk_markdown(text: str, source_id: str, source_name: str) -> List[Dict[str, Any]]:
+
+def chunk_markdown(text: str, source_id: str, source_name: str) -> list[dict[str, Any]]:
     """
     Split markdown by ## and ### headings into chunks with metadata.
     
@@ -57,7 +59,7 @@ def extract_source_id(text: str) -> str:
     match = re.search(r'Source ID:\s*(\S+)', text)
     return match.group(1) if match else "UNKNOWN"
 
-def get_embeddings(texts: List[str], client: genai.Client) -> List[List[float]]:
+def get_embeddings(texts: list[str], client: genai.Client) -> list[list[float]]:
     """
     Get embeddings from Gemini API, with batching for rate limits.
     
@@ -92,7 +94,7 @@ def get_embeddings(texts: List[str], client: genai.Client) -> List[List[float]]:
             
     return embeddings
 
-def load_structured_tables(tables_dir: Path) -> List[Dict[str, Any]]:
+def load_structured_tables(tables_dir: Path) -> list[dict[str, Any]]:
     """
     Load JSON reference tables and convert to searchable text chunks.
     

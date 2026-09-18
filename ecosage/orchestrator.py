@@ -1,17 +1,29 @@
 """Reasoning orchestrator: coordinates retrieval, graph traversal, generation, and validation."""
 from __future__ import annotations
-import logging
-from ecosage.models import EcoSageInput, EcoSageResponse, Recommendation
-from ecosage.retrieval import retrieve, get_retrieval_trace, lookup_structured_table
-from ecosage.causal_graph import get_causal_chain, get_related_metrics, get_edges_for_intervention, render_chain_text
-from ecosage.generator import generate_recommendations
-from ecosage.validator import validate_response
-from ecosage.conversation import (
-    get_or_create_session, update_session_metrics, extract_metrics_from_text,
-    get_clarifying_questions, needs_clarification, build_query_from_session
-)
 
-logger = logging.getLogger(__name__)
+from ecosage.causal_graph import (
+    get_causal_chain,
+    get_edges_for_intervention,
+    get_related_metrics,
+    render_chain_text,
+)
+from ecosage.conversation import (
+    build_query_from_session,
+    extract_metrics_from_text,
+    get_clarifying_questions,
+    get_or_create_session,
+    needs_clarification,
+    update_session_metrics,
+)
+from ecosage.failsafe import generate_failsafe_recommendations
+from ecosage.generator import generate_recommendations
+from ecosage.geo_inference import infer_climate_priors
+from ecosage.logger import get_logger
+from ecosage.models import EcoSageInput, EcoSageResponse
+from ecosage.retrieval import get_retrieval_trace, link_trace_to_recommendations, lookup_structured_table, retrieve
+from ecosage.validator import validate_response
+
+logger = get_logger("orchestrator")
 
 MAX_RETRIES = 2
 
@@ -46,7 +58,14 @@ def process_input(input_data: EcoSageInput) -> EcoSageResponse:
     if input_data.query_text:
         extracted = extract_metrics_from_text(input_data.query_text)
         all_metrics.update(extracted)
-    
+
+    # Step 3b: Geo-Coordinate Regional Prior Inference (PRD Bonus FR-5.3)
+    if input_data.geo and input_data.geo.lat is not None and input_data.geo.lng is not None:
+        priors = infer_climate_priors(input_data.geo.lat, input_data.geo.lng)
+        for k, v in priors.items():
+            if k not in all_metrics and k != "_geo_inferred_zone":
+                all_metrics[k] = v
+
     update_session_metrics(session_id, all_metrics)
     
     # Step 4-5: Check completeness
@@ -55,7 +74,8 @@ def process_input(input_data: EcoSageInput) -> EcoSageResponse:
         return EcoSageResponse(
             session_id=session_id,
             clarifying_questions=questions,
-            recommendations=[]
+            recommendations=[],
+            reasoning_trace={"slots": dict(session["metrics"])},
         )
     
     # Step 6: Full reasoning pipeline
@@ -161,11 +181,32 @@ def process_input(input_data: EcoSageInput) -> EcoSageResponse:
         except Exception as e:
             logger.error(f"Validation step failed: {e}")
             break
-            
+
+    # 6g: Failsafe fallback if all LLM generation attempts yielded no recommendations
+    if not response.recommendations:
+        logger.warning("LLM generation produced no recommendations. Activating deterministic science failsafe...")
+        response.recommendations = generate_failsafe_recommendations(merged_metrics, query)
+        if response.reasoning_trace is None:
+            response.reasoning_trace = {}
+        response.reasoning_trace["failsafe_activated"] = True
+
+    # Link retrieved chunks with the recommendations that cited them (FR-1.4 auditability)
+    link_trace_to_recommendations(session_id, response.recommendations)
+
+    # Attach retrieval evidence and current slots to reasoning trace for UI auditability
+    if response.reasoning_trace is None:
+        response.reasoning_trace = {}
+    traces = get_retrieval_trace(session_id)
+    if traces and traces[-1].results:
+        response.reasoning_trace["retrieval_evidence"] = [
+            r.model_dump() for r in traces[-1].results
+        ]
+    response.reasoning_trace["slots"] = dict(session["metrics"])
+
     # Store conversation turn
     session["conversation_history"].append({
         "query": input_data.query_text,
         "response_summary": [r.action for r in response.recommendations] if response.recommendations else []
     })
-    
+
     return response

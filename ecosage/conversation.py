@@ -1,9 +1,8 @@
 """Conversation management: slot-filling, clarifying questions, session memory."""
 from __future__ import annotations
-import uuid
+
 import re
-from typing import Optional
-from ecosage.models import EnvironmentalMetrics, EcoSageInput
+import uuid
 
 # The 5 critical data categories for reasoning
 CRITICAL_CATEGORIES = {
@@ -37,7 +36,7 @@ CRITICAL_CATEGORIES = {
 # In-memory session store
 _sessions: dict[str, dict] = {}
 
-def get_or_create_session(session_id: Optional[str] = None) -> tuple[str, dict]:
+def get_or_create_session(session_id: str | None = None) -> tuple[str, dict]:
     """Get existing session or create new one. Returns (session_id, session_data)."""
     if session_id and session_id in _sessions:
         return session_id, _sessions[session_id]
@@ -72,55 +71,66 @@ def extract_metrics_from_text(text: str) -> dict:
     text_lower = text.lower()
     metrics = {}
     
-    # SOC
-    soc_match = re.search(r'soc\s*(?:is\s*)?(?:around\s*)?(\d+\.?\d*)\s*%', text_lower)
+    # SOC — matches "soc is 0.3%", "soil organic carbon is 0.3%",
+    # "organic carbon is 0.3%", "0.3% soc", "0.3% organic carbon"
+    soc_match = re.search(r'(?:soc|(?:soil\s+)?organic\s+carbon)\s*(?:is|[:=])?\s*(?:around\s*)?(\d+\.?\d*)\s*%?', text_lower)
     if not soc_match:
-        soc_match = re.search(r'soil organic carbon\s*(?:is\s*)?(?:around\s*)?(\d+\.?\d*)\s*%', text_lower)
+        soc_match = re.search(r'(\d+\.?\d*)\s*%\s*(?:soc|(?:soil\s+)?organic\s+carbon)', text_lower)
     if soc_match:
-        metrics["soil_organic_carbon_pct"] = float(soc_match.group(1))
-        
+        try:
+            val = float(soc_match.group(1))
+            if 0 <= val <= 100:
+                metrics["soil_organic_carbon_pct"] = val
+        except ValueError:
+            pass
+
     # pH
-    ph_match = re.search(r'ph\s*(?:is\s*)?(?:of\s*)?(\d+\.?\d*)', text_lower)
+    ph_match = re.search(r'(?:soil\s+)?ph\s*(?:is|[:=]|of)?\s*(\d+\.?\d*)', text_lower)
     if ph_match:
-        metrics["soil_ph"] = float(ph_match.group(1))
-        
+        try:
+            val = float(ph_match.group(1))
+            if 0 <= val <= 14:
+                metrics["soil_ph"] = val
+        except ValueError:
+            pass
+
     # Rainfall categories
-    if re.search(r'\b(low|moderate|high)\s+rainfall\b', text_lower):
-        match = re.search(r'\b(low|moderate|high)\s+rainfall\b', text_lower)
-        if match:
-             metrics["rainfall"] = match.group(1)
-    elif re.search(r'rainfall\s+is\s+(low|moderate|high)', text_lower):
-        match = re.search(r'rainfall\s+is\s+(low|moderate|high)', text_lower)
-        if match:
-             metrics["rainfall"] = match.group(1)
-             
+    rain_cat_match = re.search(r'(?:rainfall\s*(?:is|[:=])?\s*|\b)(low|moderate|high)(?:\s+rainfall|\b)', text_lower)
+    if rain_cat_match:
+        metrics["rainfall"] = rain_cat_match.group(1)
+
     # Rainfall mm
-    rain_mm_match = re.search(r'(\d+)\s*mm(?:\s*per\s*year|\s*/\s*yr|\s*annually)', text_lower)
+    rain_mm_match = re.search(r'(\d+)\s*mm(?:\s*per\s*year|\s*/\s*yr|\s*annually)?', text_lower)
     if rain_mm_match:
         metrics["rainfall_mm_annual"] = float(rain_mm_match.group(1))
 
     # Region
     regions = ["semi-arid", "tropical", "temperate", "arid", "mediterranean", "boreal"]
     for region in regions:
-        if f"{region} region" in text_lower or f"in a {region}" in text_lower:
+        if region in text_lower:
             metrics["region"] = region
             break
-            
+
     # Land use
-    land_uses = ["monoculture", "agroforestry", "pasture", "forest", "degraded", "polyculture"]
+    land_uses = ["monoculture", "agroforestry", "pasture", "forest", "degraded", "polyculture", "mixed cropping"]
     for lu in land_uses:
         if lu in text_lower:
             metrics["land_use_type"] = lu
             break
-            
-    # Crop (simple heuristic)
-    crop_match = re.search(r'(?:growing|grow|plant|planted|crop(?:s)?\s*(?:are|is)?)\s+([a-z\s]+)(?:[,\.]|$)', text_lower)
+
+    # Crop
+    crop_match = re.search(r'(?:growing|grow|plant|planted|crop(?:s)?\s*(?:are|is|[:=])?)\s+([a-z\s]+)(?:[,\.]|$)', text_lower)
     if crop_match:
         crop_candidate = crop_match.group(1).strip()
-        # filter out some stop words if needed, but keeping it simple
         if len(crop_candidate.split()) <= 3:
             metrics["crop"] = crop_candidate
-            
+    elif "wheat" in text_lower:
+        metrics["crop"] = "monoculture wheat" if "monoculture" in text_lower else "wheat"
+    elif "corn" in text_lower or "maize" in text_lower:
+        metrics["crop"] = "corn"
+    elif "soy" in text_lower or "soybean" in text_lower:
+        metrics["crop"] = "soybean"
+
     return metrics
 
 def get_filled_categories(metrics: dict) -> set[str]:

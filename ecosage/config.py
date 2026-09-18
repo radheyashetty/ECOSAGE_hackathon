@@ -6,7 +6,7 @@ Supports multiple LLM providers:
 - ollama: Local Ollama (free, no account needed at all)
 """
 from functools import lru_cache
-from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,11 +18,11 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "gemini"
 
     # API Keys (only needed for cloud providers)
-    GOOGLE_API_KEY: Optional[str] = None
-    GROQ_API_KEY: Optional[str] = None
+    GOOGLE_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
 
     # Model names per provider
-    LLM_MODEL: str = "gemini-3.6-flash"
+    LLM_MODEL: str = "gemini-3.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-001"
 
     # Ollama settings

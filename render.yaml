@@ -1,0 +1,44 @@
+services:
+  # EcoSage Streamlit Web Application (Frontend Dashboard with in-process RAG & Causal Graph)
+  - type: web
+    name: ecosage-ui
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python -m ecosage.ingest"
+    startCommand: "streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-3.5-flash
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: LOG_LEVEL
+        value: INFO
+
+  # EcoSage FastAPI REST Backend (API endpoints: /chat, /health, /debug/retrieval)
+  - type: web
+    name: ecosage-api
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python -m ecosage.ingest"
+    startCommand: "uvicorn ecosage.api:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-3.5-flash
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: LOG_LEVEL
+        value: INFO

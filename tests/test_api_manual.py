@@ -1,6 +1,16 @@
 """Manual verification script for all FastAPI endpoints."""
-from fastapi.testclient import TestClient
-from ecosage.api import app
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from ecosage.api import app  # noqa: E402
+
 
 def main():
     client = TestClient(app)
@@ -60,8 +70,11 @@ def main():
         t0 = trace_data["traces"][0]
         print(f"   Query: {t0.get('query')}")
         print(f"   Results retrieved: {len(t0.get('results', []))}")
-        for res in t0.get("results", [])[:2]:
-            print(f"     * [{res.get('source_id')}] score: {res.get('similarity_score', 0):.3f}")
+        for res in t0.get("results", []):
+            assert "source_name" in res
+            assert "chunk_text" in res
+            assert "similarity_score" in res
+            print(f"     * [{res.get('source_id')}] score: {res.get('similarity_score', 0):.3f} | Supported Rec: {str(res.get('supported_recommendation'))[:40]}...")
             
     print("\nALL VERIFICATIONS PASSED SUCCESSFULLY!")
 
