@@ -294,13 +294,26 @@ def create_submission_doc(output_path="EcoSage_Hackathon_Submission.docx"):
     ]
 
     import os
+    import io
+    from PIL import Image
+
     for img_path, caption in screen_figures:
         if os.path.exists(img_path):
+            # Compress and resize image in memory to keep document under 500KB
+            im = Image.open(img_path)
+            w, h = im.size
+            target_w = 1100
+            target_h = int(h * (target_w / w))
+            im_resized = im.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            img_buf = io.BytesIO()
+            im_resized.convert("RGB").save(img_buf, format="JPEG", quality=68, optimize=True)
+            img_buf.seek(0)
+
             p_img = doc.add_paragraph()
             p_img.paragraph_format.space_before = Pt(8)
             p_img.paragraph_format.space_after = Pt(2)
             run_img = p_img.add_run()
-            run_img.add_picture(img_path, width=Inches(6.0))
+            run_img.add_picture(img_buf, width=Inches(6.0))
             
             p_cap = doc.add_paragraph()
             p_cap.paragraph_format.space_after = Pt(10)
