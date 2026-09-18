@@ -1,0 +1,23 @@
+{
+  "description": "Soil Organic Carbon benchmarks by biome and land-use type",
+  "source": "FAO-SOC-2017",
+  "benchmarks": [
+    {"biome": "tropical_humid", "land_use": "forest", "soc_pct_low": 3.0, "soc_pct_high": 8.0, "soc_pct_typical": 5.0},
+    {"biome": "tropical_humid", "land_use": "agroforestry", "soc_pct_low": 2.0, "soc_pct_high": 5.0, "soc_pct_typical": 3.5},
+    {"biome": "tropical_humid", "land_use": "monoculture", "soc_pct_low": 0.8, "soc_pct_high": 2.5, "soc_pct_typical": 1.5},
+    {"biome": "tropical_humid", "land_use": "degraded", "soc_pct_low": 0.2, "soc_pct_high": 1.0, "soc_pct_typical": 0.5},
+    {"biome": "semi_arid", "land_use": "forest", "soc_pct_low": 1.5, "soc_pct_high": 4.0, "soc_pct_typical": 2.5},
+    {"biome": "semi_arid", "land_use": "agroforestry", "soc_pct_low": 1.0, "soc_pct_high": 3.0, "soc_pct_typical": 2.0},
+    {"biome": "semi_arid", "land_use": "monoculture", "soc_pct_low": 0.3, "soc_pct_high": 1.5, "soc_pct_typical": 0.8},
+    {"biome": "semi_arid", "land_use": "degraded", "soc_pct_low": 0.1, "soc_pct_high": 0.5, "soc_pct_typical": 0.3},
+    {"biome": "semi_arid", "land_use": "pasture", "soc_pct_low": 0.5, "soc_pct_high": 2.0, "soc_pct_typical": 1.2},
+    {"biome": "temperate", "land_use": "forest", "soc_pct_low": 3.0, "soc_pct_high": 10.0, "soc_pct_typical": 5.5},
+    {"biome": "temperate", "land_use": "agroforestry", "soc_pct_low": 2.0, "soc_pct_high": 6.0, "soc_pct_typical": 3.5},
+    {"biome": "temperate", "land_use": "monoculture", "soc_pct_low": 1.0, "soc_pct_high": 3.0, "soc_pct_typical": 2.0},
+    {"biome": "temperate", "land_use": "degraded", "soc_pct_low": 0.5, "soc_pct_high": 1.5, "soc_pct_typical": 0.8},
+    {"biome": "temperate", "land_use": "pasture", "soc_pct_low": 1.5, "soc_pct_high": 4.0, "soc_pct_typical": 2.5},
+    {"biome": "boreal", "land_use": "forest", "soc_pct_low": 5.0, "soc_pct_high": 15.0, "soc_pct_typical": 8.0},
+    {"biome": "arid", "land_use": "degraded", "soc_pct_low": 0.05, "soc_pct_high": 0.3, "soc_pct_typical": 0.15},
+    {"biome": "arid", "land_use": "monoculture", "soc_pct_low": 0.1, "soc_pct_high": 0.8, "soc_pct_typical": 0.4}
+  ]
+}

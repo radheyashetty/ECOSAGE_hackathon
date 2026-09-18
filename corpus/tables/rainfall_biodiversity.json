@@ -1,0 +1,11 @@
+{
+  "description": "Rainfall-biodiversity correlations across biomes",
+  "source": "IPCC-AR6-LU",
+  "correlations": [
+    {"rainfall_category": "very_low", "rainfall_mm_range": [0, 200], "biodiversity_potential": "very_low", "species_richness_modifier": 0.3, "key_constraint": "Water scarcity limits all biological activity", "recommended_interventions": ["drought-resistant species", "water harvesting", "mulching"]},
+    {"rainfall_category": "low", "rainfall_mm_range": [200, 500], "biodiversity_potential": "low_to_moderate", "species_richness_modifier": 0.5, "key_constraint": "Water stress limits species diversity; drought-adapted species required", "recommended_interventions": ["agroforestry with drought-tolerant trees", "intercropping with legumes", "mulching", "contour farming"]},
+    {"rainfall_category": "moderate", "rainfall_mm_range": [500, 1000], "biodiversity_potential": "moderate_to_high", "species_richness_modifier": 0.75, "key_constraint": "Seasonal water stress possible; soil moisture retention is key", "recommended_interventions": ["agroforestry", "cover cropping", "intercropping", "riparian buffers"]},
+    {"rainfall_category": "high", "rainfall_mm_range": [1000, 2000], "biodiversity_potential": "high", "species_richness_modifier": 0.9, "key_constraint": "Erosion risk from heavy rainfall; nutrient leaching possible", "recommended_interventions": ["multi-strata agroforestry", "permanent ground cover", "terracing"]},
+    {"rainfall_category": "very_high", "rainfall_mm_range": [2000, 5000], "biodiversity_potential": "very_high", "species_richness_modifier": 1.0, "key_constraint": "Waterlogging risk; fungal disease pressure", "recommended_interventions": ["raised beds", "drainage management", "diverse canopy layers"]}
+  ]
+}

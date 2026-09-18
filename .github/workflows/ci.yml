@@ -1,0 +1,33 @@
+name: EcoSage CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Lint with ruff
+        run: ruff check ecosage/ tests/ ui/
+      
+      - name: Run unit tests (no API key needed)
+        run: pytest tests/test_validator.py -v
+      
+      - name: Run acceptance tests
+        if: env.GOOGLE_API_KEY != ''
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: pytest tests/test_acceptance.py -v -m acceptance

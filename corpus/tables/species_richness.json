@@ -1,0 +1,14 @@
+{
+  "description": "Species richness indices by land-use type (normalized 0-1 scale)",
+  "source": "AGROFOR-BIO-2020",
+  "indices": [
+    {"land_use": "primary_forest", "species_richness_index": 0.95, "bird_richness": 0.92, "arthropod_richness": 0.90, "pollinator_diversity": 0.88, "notes": "Baseline reference ecosystem"},
+    {"land_use": "secondary_forest", "species_richness_index": 0.78, "bird_richness": 0.75, "arthropod_richness": 0.72, "pollinator_diversity": 0.70, "notes": "Recovery after disturbance"},
+    {"land_use": "agroforestry", "species_richness_index": 0.65, "bird_richness": 0.68, "arthropod_richness": 0.60, "pollinator_diversity": 0.62, "notes": "Significant biodiversity co-benefits"},
+    {"land_use": "mixed_cropping", "species_richness_index": 0.50, "bird_richness": 0.48, "arthropod_richness": 0.52, "pollinator_diversity": 0.55, "notes": "Intercropping and polyculture"},
+    {"land_use": "pasture_managed", "species_richness_index": 0.42, "bird_richness": 0.45, "arthropod_richness": 0.38, "pollinator_diversity": 0.40, "notes": "Rotational grazing"},
+    {"land_use": "monoculture", "species_richness_index": 0.22, "bird_richness": 0.20, "arthropod_richness": 0.25, "pollinator_diversity": 0.18, "notes": "Lowest biodiversity among active land uses"},
+    {"land_use": "degraded", "species_richness_index": 0.15, "bird_richness": 0.12, "arthropod_richness": 0.18, "pollinator_diversity": 0.10, "notes": "Severely impacted ecosystem"},
+    {"land_use": "urban", "species_richness_index": 0.18, "bird_richness": 0.22, "arthropod_richness": 0.15, "pollinator_diversity": 0.12, "notes": "Urban ecosystems with some greenspace"}
+  ]
+}
