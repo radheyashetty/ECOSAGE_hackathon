@@ -3,6 +3,7 @@
 > An evidence-grounded, multi-metric reasoning system that behaves like an environmental scientist — not a chatbot.
 
 [![CI](https://github.com/radheyashetty/ECOSAGE_hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/radheyashetty/ECOSAGE_hackathon/actions)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ecosagehackathon-radheyashetty.streamlit.app)
 
 ![EcoSage Walkthrough Demo](demo/walkthrough.gif)
 

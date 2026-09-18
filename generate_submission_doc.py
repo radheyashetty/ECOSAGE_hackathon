@@ -49,7 +49,7 @@ def create_submission_doc(output_path="EcoSage_Hackathon_Submission.docx"):
     meta_data = [
         ("Candidate / Team:", "Radheya Shetty"),
         ("GitHub Repository:", "https://github.com/radheyashetty/ECOSAGE_hackathon"),
-        ("Live Demo URL:", "http://localhost:8501 (or deployed Streamlit Cloud URL)"),
+        ("Live Demo URL:", "https://ecosagehackathon-radheyashetty.streamlit.app"),
         ("Target Challenge:", "Darukaa.Earth AI Environmental Scientist Hackathon"),
         ("Reviewer Access Granted to:", "ankita.dasgupta@darukaa.com, harsh.kumar@darukaa.com,\nutkarsh.gauniyal@darukaa.com, guneet.mutreja@darukaa.com")
     ]

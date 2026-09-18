@@ -76,6 +76,8 @@ def get_query_embedding(query: str, client: genai.Client) -> list[float]:
             return _query_embedding_cache[clean_query]
 
     settings = get_settings()
+    if not client:
+        return []
     try:
         response = client.models.embed_content(
             model=settings.EMBEDDING_MODEL,
@@ -108,7 +110,12 @@ def retrieve(query: str, top_k: int = 5, session_id: str = "default") -> list[Re
         List[RetrievalResult]: List of retrieval results.
     """
     settings = get_settings()
-    client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+    client = None
+    if settings.GOOGLE_API_KEY:
+        try:
+            client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+        except Exception as e:
+            logger.warning(f"Could not initialize Gemini Client: {e}")
     
     try:
         chroma_client = chromadb.PersistentClient(path=settings.CHROMA_PATH)
