@@ -142,7 +142,9 @@ def generate_report_markdown(response: dict) -> str:
 def get_backend_response(payload: dict) -> dict | None:
     """Send request to FastAPI backend, with transparent in-process fallback (Section 9 calm error)."""
     try:
-        response = httpx.post(f"{API_URL}/chat", json=payload, timeout=60.0)
+        # Fast connect timeout (1.0s) so standalone Streamlit fallback activates instantly without latency
+        timeout_config = httpx.Timeout(timeout=60.0, connect=1.0)
+        response = httpx.post(f"{API_URL}/chat", json=payload, timeout=timeout_config)
         response.raise_for_status()
         return response.json()
     except (httpx.ConnectError, httpx.RequestError):
@@ -328,7 +330,11 @@ def render_scenario_comparison_view():
 
     st.info(f"💡 **Hypothesis:** {perturbation_note}")
 
-    if st.button("🚀 Run Live Sensitivity Comparison", use_container_width=True):
+    if "scenario_cache" not in st.session_state:
+        st.session_state.scenario_cache = {}
+
+    run_clicked = st.button("🚀 Run Live Sensitivity Comparison", use_container_width=True)
+    if run_clicked:
         with st.spinner("Executing dual-scenario causal graph traversals..."):
             res_base = process_input(EcoSageInput(
                 session_id="comparison-baseline",
@@ -342,6 +348,10 @@ def render_scenario_comparison_view():
                 query_text="Restore biodiversity and soil health under perturbed constraints",
             )).model_dump(mode="json")
 
+            st.session_state.scenario_cache[var_choice] = (res_base, res_pert)
+
+    if var_choice in st.session_state.scenario_cache:
+        res_base, res_pert = st.session_state.scenario_cache[var_choice]
         col_left, col_right = st.columns(2)
 
         with col_left:

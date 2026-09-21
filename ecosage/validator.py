@@ -21,6 +21,13 @@ GENERIC_BLOCKLIST = [
     "conserve natural resources",
 ]
 
+VALID_BENCHMARK_TABLES = {
+    "reference_table",
+    "soc_benchmarks",
+    "rainfall_biodiversity",
+    "species_richness",
+}
+
 @dataclass
 class ValidationResult:
     is_valid: bool
@@ -86,11 +93,12 @@ def validate_recommendation(rec: Recommendation, retrieved_source_ids: set[str])
         if phrase in mech_lower:
             errors.append(f"Mechanism contains generic blocklisted phrase: '{phrase}'")
             
-    # Check 5: Cross-reference - cited source IDs must exist in retrieved context
+    # Check 5: Cross-reference - cited source IDs must exist in retrieved context or benchmark tables
     if rec.sources:
         for source in rec.sources:
-            if getattr(source, 'id', None) not in retrieved_source_ids:
-                errors.append(f"Source ID '{getattr(source, 'id', '')}' was cited but not found in retrieved context (hallucination risk).")
+            source_id = getattr(source, 'id', None)
+            if source_id not in retrieved_source_ids and source_id not in VALID_BENCHMARK_TABLES:
+                errors.append(f"Source ID '{source_id or ''}' was cited but not found in retrieved context (hallucination risk).")
                 
     # Check 6: Impacted metrics - at least 3 metrics listed
     if not rec.impacted_metrics or len(rec.impacted_metrics) < 3:

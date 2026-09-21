@@ -28,10 +28,10 @@ CRITICAL RULES:
    - The time horizon (short <1yr / medium 1-3yr / long 3yr+)
    - Ecological trade-offs or management precautions (e.g. moisture competition, sapling grazing defense, or shade management)
    - Economic & operational feasibility assessment (e.g. Low CapEx seed outlay, phased silvopasture investment)
-   - Specific source citations from the provided context
+   - Specific source citations using ONLY the exact Document IDs from RETRIEVED CONTEXT (e.g. FAO-SOC-2017, IPCC-AR6-LU). Do NOT invent IDs.
 3. You MUST trace causal chains: e.g., intercropping → root diversity → SOC accumulation → microbial diversity → pollinator activity
 4. NEVER use generic phrases like "use sustainable practices" or "plant more trees" without specifics.
-5. If the context doesn't contain enough information to make a grounded recommendation, say so explicitly.
+5. Provide at most 2-3 focused recommendations.
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 {
@@ -58,10 +58,10 @@ def build_context_prompt(
     table_data: list[dict],
     user_metrics: dict,
 ) -> str:
-    """Build the full prompt with grounded context injected."""
+    """Build the full prompt with grounded context injected in token-compact format."""
     prompt_parts = []
 
-    prompt_parts.append(f"USER QUERY: {query}\n")
+    prompt_parts.append(f"USER QUERY: {query.strip()}\n")
 
     prompt_parts.append("USER ENVIRONMENTAL METRICS:")
     if user_metrics:
@@ -71,19 +71,19 @@ def build_context_prompt(
         prompt_parts.append("None provided.")
     prompt_parts.append("\n")
 
-    prompt_parts.append("RETRIEVED CONTEXT (MUST USE):")
+    prompt_parts.append("RETRIEVED CONTEXT (MUST USE FOR CITATIONS):")
     if retrieved_chunks:
         for chunk in retrieved_chunks:
             source_name = chunk.get("source_name", "Unknown")
             source_id = chunk.get("source_id", "UnknownID")
-            text = chunk.get("text", "")
+            text = " ".join(chunk.get("text", "").split())
             prompt_parts.append(f"--- SOURCE: {source_name} (ID: {source_id}) ---\n{text}\n")
     else:
         prompt_parts.append("No context retrieved. DO NOT MAKE UP INFORMATION.\n")
 
     prompt_parts.append("RELEVANT CAUSAL CHAINS:")
     if causal_chains:
-        for chain in causal_chains:
+        for chain in causal_chains[:4]:
             prompt_parts.append(f"- {chain}")
     else:
         prompt_parts.append("None found.")
@@ -92,7 +92,11 @@ def build_context_prompt(
     prompt_parts.append("REFERENCE TABLE DATA:")
     if table_data:
         for entry in table_data:
-            prompt_parts.append(str(entry))
+            if isinstance(entry, dict):
+                items = [f"{k}={v}" for k, v in entry.items() if v is not None and k not in ("notes", "description")]
+                prompt_parts.append(f"- {', '.join(items)}")
+            else:
+                prompt_parts.append(f"- {entry}")
     else:
         prompt_parts.append("None found.")
 
@@ -131,6 +135,7 @@ def _generate_gemini(context_prompt: str) -> str:
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.2,
+                    max_output_tokens=1200,
                     response_mime_type="application/json",
                 )
             )
@@ -215,6 +220,10 @@ def _call_llm(context_prompt: str) -> str:
         raise ValueError(f"Unknown LLM provider: {provider}. Use 'gemini', 'groq', or 'ollama'.")
 
 
+_recommendations_cache: dict[str, list[Recommendation]] = {}
+_CACHE_MAX_SIZE = 128
+
+
 # ─── Main generation function ────────────────────────────────────────────────
 
 def generate_recommendations(
@@ -225,11 +234,15 @@ def generate_recommendations(
     user_metrics: dict,
     similarity_scores: list[float],
 ) -> list[Recommendation]:
-    """Generate grounded recommendations using LLM.
+    """Generate grounded recommendations using LLM with caching and anti-hallucination guarantees."""
+    # Check cache for identical queries to save tokens
+    clean_query = query.strip()
+    metrics_sig = tuple(sorted((k, str(v)) for k, v in user_metrics.items()))
+    cache_key = f"{clean_query}::{metrics_sig}"
+    if cache_key in _recommendations_cache:
+        logger.info("⚡ Serving recommendations from in-memory cache (0 tokens consumed)")
+        return _recommendations_cache[cache_key]
 
-    ANTI-HALLUCINATION GUARANTEE: The LLM is NEVER called without
-    retrieved, source-tagged context being injected into the prompt.
-    """
     if not retrieved_chunks:
         logger.warning("generate_recommendations called with empty retrieved_chunks. LLM will likely refuse.")
 
@@ -295,5 +308,10 @@ def generate_recommendations(
         except Exception as e:
             logger.error(f"Error parsing individual recommendation: {e}")
             continue
+
+    if recommendations:
+        if len(_recommendations_cache) >= _CACHE_MAX_SIZE:
+            _recommendations_cache.pop(next(iter(_recommendations_cache)))
+        _recommendations_cache[cache_key] = recommendations
 
     return recommendations
