@@ -293,8 +293,9 @@ def create_submission_doc(output_path="EcoSage_Hackathon_Submission.docx"):
         ("screenshots/05_clarifying_questions.png", "Figure 5: Conversational Clarifying Flow asking targeted questions with interactive discrete parameter buttons."),
     ]
 
-    import os
     import io
+    import os
+
     from PIL import Image
 
     for img_path, caption in screen_figures:

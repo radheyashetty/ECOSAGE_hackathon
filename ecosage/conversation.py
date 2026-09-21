@@ -71,9 +71,17 @@ def extract_metrics_from_text(text: str) -> dict:
     text_lower = text.lower()
     metrics = {}
     
-    # SOC — matches "soc is 0.3%", "soil organic carbon is 0.3%",
-    # "organic carbon is 0.3%", "0.3% soc", "0.3% organic carbon"
-    soc_match = re.search(r'(?:soc|(?:soil\s+)?organic\s+carbon)\s*(?:is|[:=])?\s*(?:around\s*)?(\d+\.?\d*)\s*%?', text_lower)
+    # SOC — matches many natural language patterns:
+    # "soc is 0.3%", "soil organic carbon is 0.3%", "organic carbon is 0.3%",
+    # "0.3% soc", "0.3% organic carbon", "carbon has dropped to 0.2%",
+    # "soc at 0.4%", "organic carbon approximately 1.5%"
+    soc_match = re.search(
+        r'(?:soc|(?:soil\s+)?organic\s+carbon)'
+        r'\s*(?:is|was|has\s+\w+\s+to|[:=]|of|at)?\s*'
+        r'(?:around|approximately|roughly|about|currently)?\s*'
+        r'(\d+\.?\d*)\s*%?',
+        text_lower,
+    )
     if not soc_match:
         soc_match = re.search(r'(\d+\.?\d*)\s*%\s*(?:soc|(?:soil\s+)?organic\s+carbon)', text_lower)
     if soc_match:
@@ -84,8 +92,13 @@ def extract_metrics_from_text(text: str) -> dict:
         except ValueError:
             pass
 
-    # pH
-    ph_match = re.search(r'(?:soil\s+)?ph\s*(?:is|[:=]|of)?\s*(\d+\.?\d*)', text_lower)
+    # pH — handles "soil pH is around 8.2", "pH approximately 6.5", etc.
+    ph_match = re.search(
+        r'(?:soil\s+)?ph\s*(?:is|was|[:=]|of|at)?\s*'
+        r'(?:around|approximately|roughly|about|currently)?\s*'
+        r'(\d+\.?\d*)',
+        text_lower,
+    )
     if ph_match:
         try:
             val = float(ph_match.group(1))
@@ -99,8 +112,14 @@ def extract_metrics_from_text(text: str) -> dict:
     if rain_cat_match:
         metrics["rainfall"] = rain_cat_match.group(1)
 
-    # Rainfall mm
-    rain_mm_match = re.search(r'(\d+)\s*mm(?:\s*per\s*year|\s*/\s*yr|\s*annually)?', text_lower)
+    # Rainfall mm — handles "rainfall is approximately 450mm", "annual rainfall 600mm",
+    # "1500mm rainfall", "around 450mm", etc.
+    rain_mm_match = re.search(
+        r'(?:(?:annual\s+)?rainfall\s*(?:is|was|[:=]|of|at)?\s*'
+        r'(?:around|approximately|roughly|about)?\s*)?'
+        r'(\d+)\s*mm(?:\s*(?:per\s*year|/\s*yr|annually|annual))?',
+        text_lower,
+    )
     if rain_mm_match:
         metrics["rainfall_mm_annual"] = float(rain_mm_match.group(1))
 
@@ -112,24 +131,39 @@ def extract_metrics_from_text(text: str) -> dict:
             break
 
     # Land use
-    land_uses = ["monoculture", "agroforestry", "pasture", "forest", "degraded", "polyculture", "mixed cropping"]
+    land_uses = ["monoculture", "agroforestry", "pasture", "forest", "degraded", "polyculture", "mixed cropping", "mixed_cropping"]
     for lu in land_uses:
         if lu in text_lower:
             metrics["land_use_type"] = lu
             break
 
-    # Crop
-    crop_match = re.search(r'(?:growing|grow|plant|planted|crop(?:s)?\s*(?:are|is|[:=])?)\s+([a-z\s]+)(?:[,\.]|$)', text_lower)
+    # Crop — catch "cotton farming", "rice cultivation", named crops, etc.
+    crop_match = re.search(
+        r'(?:growing|grow|plant(?:ed|ing)?|crop(?:s)?\s*(?:are|is|[:=])?|farming|cultivation\s+of)\s+([a-z\s]+?)(?:[,\.\;\)]|$)',
+        text_lower,
+    )
     if crop_match:
         crop_candidate = crop_match.group(1).strip()
-        if len(crop_candidate.split()) <= 3:
+        if len(crop_candidate.split()) <= 3 and crop_candidate:
             metrics["crop"] = crop_candidate
-    elif "wheat" in text_lower:
-        metrics["crop"] = "monoculture wheat" if "monoculture" in text_lower else "wheat"
-    elif "corn" in text_lower or "maize" in text_lower:
-        metrics["crop"] = "corn"
-    elif "soy" in text_lower or "soybean" in text_lower:
-        metrics["crop"] = "soybean"
+
+    # Named crop fallback
+    named_crops = [
+        ("wheat", "wheat"), ("rice", "rice"), ("cotton", "cotton"),
+        ("corn", "corn"), ("maize", "corn"), ("soy", "soybean"),
+        ("soybean", "soybean"), ("cassava", "cassava"), ("millet", "millet"),
+        ("sorghum", "sorghum"), ("barley", "barley"), ("sugarcane", "sugarcane"),
+        ("potato", "potato"), ("groundnut", "groundnut"), ("chickpea", "chickpea"),
+    ]
+    if "crop" not in metrics:
+        for pattern, crop_name in named_crops:
+            if pattern in text_lower:
+                prefix = metrics.get("land_use_type", "")
+                if prefix == "monoculture":
+                    metrics["crop"] = f"monoculture {crop_name}"
+                else:
+                    metrics["crop"] = crop_name
+                break
 
     return metrics
 

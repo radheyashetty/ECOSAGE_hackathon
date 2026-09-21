@@ -149,12 +149,34 @@ def get_backend_response(payload: dict) -> dict | None:
         # In-process standalone execution fallback
         try:
             metrics_obj = None
-            if payload.get("metrics"):
-                metrics_obj = EnvironmentalMetrics(**payload["metrics"])
+            if payload.get("metrics") and isinstance(payload["metrics"], dict):
+                try:
+                    valid_fields = EnvironmentalMetrics.model_fields.keys()
+                    clean_metrics = {}
+                    for k, v in payload["metrics"].items():
+                        if k in valid_fields and v is not None:
+                            if k in ("soil_ph", "soil_organic_carbon_pct", "soil_moisture_pct", "rainfall_mm_annual", "pollution_index", "deforestation_rate_pct"):
+                                try:
+                                    num_val = float(v)
+                                    if k == "soil_ph" and not (0 <= num_val <= 14):
+                                        continue
+                                    if k in ("soil_organic_carbon_pct", "soil_moisture_pct", "deforestation_rate_pct") and not (0 <= num_val <= 100):
+                                        continue
+                                    clean_metrics[k] = num_val
+                                except (ValueError, TypeError):
+                                    continue
+                            else:
+                                clean_metrics[k] = str(v)
+                    metrics_obj = EnvironmentalMetrics(**clean_metrics)
+                except Exception:
+                    metrics_obj = None
 
             geo_obj = None
-            if payload.get("geo"):
-                geo_obj = GeoCoordinates(**payload["geo"])
+            if payload.get("geo") and isinstance(payload["geo"], dict):
+                try:
+                    geo_obj = GeoCoordinates(**payload["geo"])
+                except Exception:
+                    geo_obj = None
 
             inp = EcoSageInput(
                 session_id=payload.get("session_id"),
@@ -489,7 +511,13 @@ def main():
                             execute_pipeline(text, chip_slots)
                             st.rerun()
 
-                        render_clarifying_questions(resp["clarifying_questions"], on_select_chip)
+                        is_latest = (idx == len(st.session_state.messages) - 1)
+                        render_clarifying_questions(
+                            resp["clarifying_questions"],
+                            on_select_chip,
+                            turn_index=idx,
+                            is_latest=is_latest,
+                        )
                     elif resp.get("recommendations"):
                         for r_idx, rec in enumerate(resp["recommendations"]):
                             render_field_report_card(
@@ -514,6 +542,8 @@ def main():
                         if resp.get("reasoning_trace"):
                             with st.expander("🔍 Full Reasoning Trace & Telemetry", expanded=False):
                                 st.json(resp["reasoning_trace"])
+                    else:
+                        st.info("ℹ️ More ecological context is needed to generate specific recommendations. Try providing details such as your soil organic carbon (SOC%), rainfall, or current crops.")
 
         # Input Area Controls (Section 3)
         input_mode = st.radio(
@@ -548,12 +578,13 @@ def main():
                         step=0.1,
                     )
                 with col_p2:
+                    _rain_opts = ["low", "moderate", "high"]
+                    _rain_val = st.session_state.current_slots.get("rainfall", "low")
+                    _rain_idx = _rain_opts.index(_rain_val) if _rain_val in _rain_opts else 0
                     rainfall_cat = st.selectbox(
                         "Rainfall Pattern",
-                        ["low", "moderate", "high"],
-                        index=["low", "moderate", "high"].index(
-                            st.session_state.current_slots.get("rainfall", "low")
-                        ),
+                        _rain_opts,
+                        index=_rain_idx,
                     )
                     rainfall_mm = st.number_input(
                         "Annual Rainfall (mm)",
@@ -561,19 +592,21 @@ def main():
                         step=50.0,
                     )
                 with col_p3:
+                    _region_opts = ["semi-arid", "tropical", "temperate", "arid", "mediterranean", "boreal"]
+                    _region_val = st.session_state.current_slots.get("region", "semi-arid")
+                    _region_idx = _region_opts.index(_region_val) if _region_val in _region_opts else 0
                     region = st.selectbox(
                         "Region / Biome",
-                        ["semi-arid", "tropical", "temperate", "arid", "boreal"],
-                        index=["semi-arid", "tropical", "temperate", "arid", "boreal"].index(
-                            st.session_state.current_slots.get("region", "semi-arid")
-                        ),
+                        _region_opts,
+                        index=_region_idx,
                     )
+                    _lu_opts = ["monoculture", "agroforestry", "pasture", "forest", "degraded", "polyculture", "mixed_cropping"]
+                    _lu_val = st.session_state.current_slots.get("land_use_type", "monoculture")
+                    _lu_idx = _lu_opts.index(_lu_val) if _lu_val in _lu_opts else 0
                     land_use = st.selectbox(
                         "Land Use Type",
-                        ["monoculture", "agroforestry", "pasture", "forest", "degraded", "mixed_cropping"],
-                        index=["monoculture", "agroforestry", "pasture", "forest", "degraded", "mixed_cropping"].index(
-                            st.session_state.current_slots.get("land_use_type", "monoculture")
-                        ),
+                        _lu_opts,
+                        index=_lu_idx,
                     )
 
                 crop = st.text_input(

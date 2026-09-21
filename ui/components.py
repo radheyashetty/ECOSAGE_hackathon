@@ -148,7 +148,10 @@ def render_slot_panel(slots: dict[str, Any]):
                     val_strs.append(str(slots["crop"]))
             elif cat_id == "climate":
                 if "rainfall_mm_annual" in slots:
-                    val_strs.append(f"{int(slots['rainfall_mm_annual'])}mm")
+                    try:
+                        val_strs.append(f"{int(float(slots['rainfall_mm_annual']))}mm")
+                    except (ValueError, TypeError):
+                        val_strs.append(f"{slots['rainfall_mm_annual']}mm")
                 elif "rainfall" in slots:
                     val_strs.append(str(slots["rainfall"]))
                 if "region" in slots:
@@ -194,9 +197,9 @@ def render_field_report_card(
     turn_index: int = 0
 ):
     """Sections 5 & 6: Recommendation Field Report Card with 'Why this matters' and expandable evidence."""
-    confidence = rec.get("confidence", "Medium")
+    confidence = str(rec.get("confidence") or "Medium")
     is_low_conf = confidence.lower() == "low"
-    time_horizon = rec.get("time_horizon", "medium").lower()
+    time_horizon = str(rec.get("time_horizon") or "medium").lower()
 
     if "short" in time_horizon:
         horizon_class = "badge-amber"
@@ -218,12 +221,18 @@ def render_field_report_card(
         conf_class = "badge-amber"
         conf_label = "● Medium Confidence"
 
-    quant_estimate = rec.get("quantified_estimate", "Quantitative uplift projected")
-    capex_estimate = rec.get("economic_feasibility", "Moderate CapEx")
+    quant_estimate = str(rec.get("quantified_estimate") or "Quantitative uplift projected")
+    capex_estimate = str(rec.get("economic_feasibility") or "Moderate CapEx")
+    rec_action = str(rec.get("action") or "Recommended Intervention")
+    rec_mechanism = str(rec.get("mechanism") or "Evidence-grounded agroecological mechanism.")
 
     why_matters = "Directly addresses reported ecosystem constraints with targeted scientific intervention."
     if user_slots:
-        soc_val = user_slots.get("soil_organic_carbon_pct")
+        soc_raw = user_slots.get("soil_organic_carbon_pct")
+        try:
+            soc_val = float(soc_raw) if soc_raw is not None else None
+        except (ValueError, TypeError):
+            soc_val = None
         rain_val = user_slots.get("rainfall_mm_annual") or user_slots.get("rainfall")
         crop_val = user_slots.get("crop")
         if soc_val is not None and soc_val < 1.0 and rain_val:
@@ -233,10 +242,10 @@ def render_field_report_card(
         elif crop_val:
             why_matters = f"Breaks monoculture vulnerability in your {crop_val} system while bolstering natural pest predators."
 
-    impacted_metrics = rec.get("impacted_metrics", [])
+    impacted_metrics = rec.get("impacted_metrics") or []
     causal_chips_html = []
     if impacted_metrics:
-        nodes = ["Intervention"] + [m.replace("_", " ").title() for m in impacted_metrics]
+        nodes = ["Intervention"] + [str(m).replace("_", " ").title() for m in impacted_metrics]
         arrow_icon = get_svg_icon("arrow-right", COLOR_TEXT_MUTED, 12)
         for i, node in enumerate(nodes):
             causal_chips_html.append(f'<span class="causal-chip">{html.escape(node)}</span>')
@@ -250,11 +259,11 @@ def render_field_report_card(
         alert_icon = get_svg_icon("alert", COLOR_AMBER_TEXT, 14)
         low_conf_banner_html = f'<div class="low-conf-banner">{alert_icon}<span>Limited source agreement — treat as directional (Low confidence). Further on-site testing recommended.</span></div>'
 
-    tradeoffs = rec.get("ecological_tradeoffs", [])
+    tradeoffs = rec.get("ecological_tradeoffs") or []
     tradeoffs_html = ""
     if tradeoffs:
         alert_icon = get_svg_icon("alert", COLOR_AMBER_TEXT, 14)
-        list_items = "".join([f"<li>{html.escape(t)}</li>" for t in tradeoffs])
+        list_items = "".join([f"<li>{html.escape(str(t))}</li>" for t in tradeoffs])
         tradeoffs_html = f'''<div class="tradeoffs-callout">
 <div style="display:flex; align-items:center; gap:6px; font-weight:500;">{alert_icon}<span>Ecological Trade-offs & Management Precautions:</span></div>
 <ul class="tradeoffs-list">{list_items}</ul>
@@ -262,7 +271,7 @@ def render_field_report_card(
 
     card_content = f'''<div class="{card_class}">
 {low_conf_banner_html}
-<div class="report-card-action">{rec_index + 1}. {html.escape(rec.get('action', 'Recommended Intervention'))}</div>
+<div class="report-card-action">{rec_index + 1}. {html.escape(rec_action)}</div>
 <div class="report-badges-row">
 <span class="badge-semantic {horizon_class}">{horizon_label}</span>
 <span class="badge-semantic {conf_class}">{conf_label}</span>
@@ -270,7 +279,7 @@ def render_field_report_card(
 <span class="badge-semantic badge-neutral">💰 {html.escape(capex_estimate[:45])}</span>
 </div>
 <div class="why-this-matters"><strong>Why this matters:</strong> {html.escape(why_matters)}</div>
-<div class="mechanism-block">{html.escape(rec.get('mechanism', ''))}</div>
+<div class="mechanism-block">{html.escape(rec_mechanism)}</div>
 <div class="causal-flow-container">
 <div class="causal-flow-title">Traversed Causal Pathway:</div>
 <div class="causal-flow-chips">{"".join(causal_chips_html)}</div>
@@ -315,7 +324,9 @@ def render_field_report_card(
 
 def render_clarifying_questions(
     questions: list[str],
-    on_select_chip: Callable[[str, dict], None]
+    on_select_chip: Callable[[str, dict], None],
+    turn_index: int = 0,
+    is_latest: bool = True,
 ):
     """Section 4 & 9: Warm informational clarifying inquiry card with interactive chip selectors."""
     info_icon = get_svg_icon("info", COLOR_BLUE_TEXT, 18)
@@ -328,6 +339,9 @@ def render_clarifying_questions(
     for q in questions:
         st.markdown(f"- **{q}**")
 
+    if not is_latest:
+        return
+
     st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
     st.caption("Select a quick parameter chip or type your answer below:")
 
@@ -336,37 +350,37 @@ def render_clarifying_questions(
     if "rainfall" in q_text:
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Low Rainfall (< 400 mm/yr)", key="chip_rain_low"):
+            if st.button("Low Rainfall (< 400 mm/yr)", key=f"chip_rain_low_{turn_index}"):
                 on_select_chip("Rainfall is low (< 400 mm/yr)", {"rainfall": "low", "rainfall_mm_annual": 350.0})
         with col2:
-            if st.button("Moderate Rainfall (400-800 mm)", key="chip_rain_mod"):
+            if st.button("Moderate Rainfall (400-800 mm)", key=f"chip_rain_mod_{turn_index}"):
                 on_select_chip("Rainfall is moderate (400-800 mm/yr)", {"rainfall": "moderate", "rainfall_mm_annual": 600.0})
         with col3:
-            if st.button("High Rainfall (> 800 mm)", key="chip_rain_high"):
+            if st.button("High Rainfall (> 800 mm)", key=f"chip_rain_high_{turn_index}"):
                 on_select_chip("Rainfall is high (> 800 mm/yr)", {"rainfall": "high", "rainfall_mm_annual": 1100.0})
 
     elif "soil" in q_text or "carbon" in q_text or "ph" in q_text:
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Low SOC (0.3%) & Neutral pH (7.0)", key="chip_soil_low"):
+            if st.button("Low SOC (0.3%) & Neutral pH (7.0)", key=f"chip_soil_low_{turn_index}"):
                 on_select_chip("Soil test shows 0.3% SOC and pH 7.0", {"soil_organic_carbon_pct": 0.3, "soil_ph": 7.0})
         with col2:
-            if st.button("Moderate SOC (1.2%) & Acidic pH (5.5)", key="chip_soil_mod"):
+            if st.button("Moderate SOC (1.2%) & Acidic pH (5.5)", key=f"chip_soil_mod_{turn_index}"):
                 on_select_chip("Soil test shows 1.2% SOC and pH 5.5", {"soil_organic_carbon_pct": 1.2, "soil_ph": 5.5})
         with col3:
-            if st.button("Healthy SOC (2.5%) & Neutral pH (6.8)", key="chip_soil_high"):
+            if st.button("Healthy SOC (2.5%) & Neutral pH (6.8)", key=f"chip_soil_high_{turn_index}"):
                 on_select_chip("Soil test shows 2.5% SOC and pH 6.8", {"soil_organic_carbon_pct": 2.5, "soil_ph": 6.8})
 
     elif "land" in q_text or "crop" in q_text:
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Monoculture Wheat", key="chip_land_mono"):
+            if st.button("Monoculture Wheat", key=f"chip_land_mono_{turn_index}"):
                 on_select_chip("Land use is monoculture wheat", {"land_use_type": "monoculture", "crop": "monoculture wheat"})
         with col2:
-            if st.button("Degraded Pasture", key="chip_land_past"):
+            if st.button("Degraded Pasture", key=f"chip_land_past_{turn_index}"):
                 on_select_chip("Land use is degraded pasture", {"land_use_type": "degraded", "crop": "pasture"})
         with col3:
-            if st.button("Mixed Crop / Orchard", key="chip_land_mix"):
+            if st.button("Mixed Crop / Orchard", key=f"chip_land_mix_{turn_index}"):
                 on_select_chip("Land use is mixed cropping and orchard", {"land_use_type": "mixed_cropping", "crop": "orchard"})
 
 
