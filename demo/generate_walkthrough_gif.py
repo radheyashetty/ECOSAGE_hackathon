@@ -22,11 +22,11 @@ slides = [
         ("Evidence-Grounded RAG | Causal Knowledge Graph | Zero-Cost (Rs 0)", TEXT_COLOR, 14),
         ("-" * 75, BORDER_COLOR, 14),
         ("[SYSTEM TELEMETRY]", BLUE_COLOR, 14),
-        ("? Vector Knowledge Base: 60 Passages Indexed (FAO, IPCC AR6)", TEXT_COLOR, 13),
-        ("? Causal Graph: 26 Directed Source-Tagged Edges (23 Metrics)", TEXT_COLOR, 13),
-        ("? Active Model: gemini-3.5-flash (with Lite/Latest Fallback)", TEXT_COLOR, 13),
-        ("? Deterministic Science Fail-Safe Engine: Online", TEXT_COLOR, 13),
-        ("? Strict 8-Rule Output Validator: Active", TEXT_COLOR, 13),
+        ("✓ Vector Knowledge Base: 60 Passages Indexed (FAO, IPCC AR6)", TEXT_COLOR, 13),
+        ("✓ Causal Graph: 26 Directed Source-Tagged Edges (23 Metrics)", TEXT_COLOR, 13),
+        ("✓ Active Model: gemini-3.5-flash (with Auto-Fallback Chain & LRU Cache)", TEXT_COLOR, 13),
+        ("✓ Deterministic Science Fail-Safe Engine: Online", TEXT_COLOR, 13),
+        ("✓ Strict 9-Rule Output Validator: Active (100% Citation Enforcement)", TEXT_COLOR, 13),
         ("", TEXT_COLOR, 14),
         ("Starting automated evaluation walkthrough...", AMBER_COLOR, 14)
     ],
@@ -77,12 +77,13 @@ slides = [
     # Frame 5: Report Export & Verifiable Test Summary
     [
         ("EcoSage: Full Verification & Publication-Grade Export", ACCENT_COLOR, 20),
-        ("137 Automated Tests Passing (100%) | Zero Cost Deployment", TEXT_COLOR, 14),
+        ("140 Automated Tests Passing (100%) | Zero Cost Deployment (Rs 0)", TEXT_COLOR, 14),
         ("-" * 75, BORDER_COLOR, 14),
-        ("? Publication-Grade Agronomist Advisory Report: Exported to .md / PDF", ACCENT_COLOR, 13),
-        ("? Audit Endpoint: /debug/retrieval/{session_id} verified with scores & rec links", BLUE_COLOR, 13),
-        ("? Multi-Model Fallback: gemini-3.5-flash -> flash-lite -> deterministic failsafe", TEXT_COLOR, 13),
-        ("? UI & REST API: Ready for review via run.bat or streamlit run ui/app.py", TEXT_COLOR, 13),
+        ("✓ Publication-Grade Agronomist Advisory Report: Exported to .md / PDF", ACCENT_COLOR, 13),
+        ("✓ Audit Endpoint: /debug/retrieval/{session_id} verified with scores & rec links", BLUE_COLOR, 13),
+        ("✓ Token-Optimized Inference: Capped at 1,200 tokens with In-Memory LRU Cache", TEXT_COLOR, 13),
+        ("✓ Multi-Model Fallback: gemini-3.5-flash -> 2.0-flash -> deterministic failsafe", TEXT_COLOR, 13),
+        ("✓ UI & REST API: Ready for review via run.bat or streamlit run ui/app.py", TEXT_COLOR, 13),
         ("", TEXT_COLOR, 10),
         ("STATUS: READY FOR DARUKAA.EARTH HACKATHON EVALUATION", ACCENT_COLOR, 16)
     ]
